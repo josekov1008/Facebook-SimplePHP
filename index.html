@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Facebook SDK - The Simple Way</title>
+<script type="text/javascript"
+      src="http://maps.googleapis.com/maps/api/js?key=AIzaSyBb5EVBxPLVTaTsHZ2lNdsVxA6ucN8ejJ4"> //Google API for the map interface
+    </script>
+
+		<script>
+			window.fbAsyncInit = function() {
+				//Facebook initialization data
+				FB.init({
+					appId      : '1406146336374834', //Facebook's App ID, same from the server.
+					xfbml      : true,
+					version    : 'v2.3',
+					cookie	   : true,
+					status 	   : true,
+					success	   : true
+				});
+			};
+
+			//Initialization of Facebook's JavaScript SDK, used for the login button and pop-up for user login/permissions
+			(function(d, s, id){
+				var js, fjs = d.getElementsByTagName(s)[0];
+				if (d.getElementById(id)) {return;}
+				js = d.createElement(s); js.id = id;
+				js.src = "//connect.facebook.net/en_US/sdk.js";
+				fjs.parentNode.insertBefore(js, fjs);
+			}(document, 'script', 'facebook-jssdk'));
+			
+			//Facebook connection initialized, login status is checked
+			function checkLoginState() {
+
+    			var url = "server.php?tipo=validar";
+				var req = new XMLHttpRequest();
+
+				req.onload = function () {
+					var respuesta = this.responseText.trim();
+
+					console.log(respuesta); //Debugging of the response from the server
+
+					var json = JSON.parse(respuesta);
+					var status = json.loginStatus;
+
+					if (status == true) {
+						//Login button is hidden
+						document.getElementById("login").style.display = 'none';
+
+						//Other buttons are shown
+						document.getElementById("divDatos").style.display = "block";
+						document.getElementById("divDatosCiudad").style.display = "block";
+						document.getElementById("divPicture").style.display = "block";
+					}
+				};
+
+				req.open("GET", url, true);
+				req.send();
+  			}
+
+			//User data is requested with "datos" from the Graph User Object
+  			function getDatos() {
+
+    			var url = "server.php?tipo=datos";
+				var req = new XMLHttpRequest();
+
+				req.onload = function () {
+					var respuesta = this.responseText.trim();
+
+
+					console.log(respuesta);
+
+					var json = JSON.parse(respuesta);
+					//Data is displayed in the document
+					document.getElementById("nombre").innerHTML = json.nombre;
+					document.getElementById("email").innerHTML = json.email;
+					document.getElementById("genero").innerHTML = json.genero.toString().charAt(0).toUpperCase() + json.genero.toString().slice(1);
+					document.getElementById("nacimiento").innerHTML = json.cumpleanos;
+					document.getElementById("edad").innerHTML = json.edad;
+
+				};
+
+				req.open("GET", url, true);
+				req.send();
+  			}
+
+			 //Profile Picture is requested with "foto", a link to the picture is retrieved.
+  			function getFoto() {
+  				var url = "server.php?tipo=foto";
+				var req = new XMLHttpRequest();
+
+				req.onload = function () {
+					var respuesta = this.responseText.trim();
+
+					console.log(respuesta);
+
+					var json = JSON.parse(respuesta);
+					
+					document.getElementById("fotoProfile").src = json.linkFoto;
+
+				};
+
+				req.open("GET", url, true);
+				req.send();
+  			}
+
+			//Map is initialized for showing user's location  
+  			function initializeMap(latInput,lonInput) {
+
+		        var mapOptions = {
+		          center: new google.maps.LatLng(latInput,lonInput),
+		          zoom: 8,
+		          mapTypeId: google.maps.MapTypeId.ROADMAP
+		        };
+
+		        var map = new google.maps.Map(document.getElementById("map_canvas"),
+		            mapOptions);
+
+		        var marker = new google.maps.Marker({
+				    position: new google.maps.LatLng(latInput,lonInput),
+				    title: "Your Location"
+				});
+
+				marker.setMap(map);
+      		}
+
+			//Latitude and Longitude is requested with freegeoip's API 
+      		function getLatLonFromFreeGeoApi(ip)
+      		{
+    			var url = "http://freegeoip.net/json/"+ip;
+				var req = new XMLHttpRequest();
+
+				req.onload = function() {
+					var respuesta = this.responseText.trim();
+					var json = JSON.parse(respuesta);
+
+					initializeMap(json.latitude,json.longitude);
+					console.log(json);
+				};
+
+				req.open("GET", url, true);
+				req.send();
+      		}
+
+			//User IP is requested
+      		function getUserIpFromPhp()
+      		{
+    			var url = "server.php?tipo=ip";
+				var req = new XMLHttpRequest();
+
+				req.onload = function() {
+					var respuesta = this.responseText.trim();
+					var json = JSON.parse(respuesta);
+
+					console.log(json.clientIp);
+					getLatLonFromFreeGeoApi(json.clientIp);
+
+				};
+
+				req.open("GET", url, true);
+				req.send();
+      		}
+
+		</script>
+
+	</head>
+	
+
+	<body onload="">
+		<!--Facebook button, style is part of the SDK-->
+		<fb:login-button scope="public_profile,email,user_birthday,user_hometown,user_location" id="login" onlogin="checkLoginState();">
+			<div class="fb-login-button" data-max-rows="1" data-size="medium" data-show-faces="false" data-auto-logout-link="false"></div>
+		</fb:login-button>
+
+		<!--Containers for displaying the data, tables-->
+		<div id="divDatos" style="display:none">
+			<h2>Personal Data</h2>
+
+			<table border="1">
+				<tr>
+					<td>Name</td>
+					<td id="nombre"></td>
+				</tr>
+				<tr>
+					<td>Age</td>
+					<td id="edad"></td>
+				</tr>
+				<tr>
+					<td>Sex</td>
+					<td id="genero"></td>
+				</tr>
+				<tr>
+					<td>E-Mail</td>
+					<td id="email"></td>
+				</tr>
+				<tr>
+					<td>Birthdate</td>
+					<td id="nacimiento"></td>
+				</tr>
+			</table>
+
+			<input type="button" id="botonDatos" value="Get User Data" onclick="getDatos()" />
+		</div>
+
+		<div id="divPicture" style="display:none">
+			<h2>Profile Picture</h2>
+
+			<img src="" id="fotoProfile" />
+
+			<br />
+
+			<input type="button" id="botonDatos" value="Get Profile Picture" onclick="getFoto()" />
+		</div>
+
+		<!--Location data may be wrong due to ISP limitations-->
+		<div id="divDatosCiudad" style="display:none">
+			<h2>Get your Location</h2>
+			<input type="button" id="botonDatos" value="Get Location" onclick="getUserIpFromPhp()" />
+			<br>
+
+			<div id="map_canvas" style="width:60%; height:600px"></div>
+		</div>
+
+	</body>
+
+	
+</html>
